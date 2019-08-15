@@ -13,6 +13,9 @@
         },
         "vnet_name": {
             "type": "string"
+        },
+        "script": {
+            "type": "string"
         }
     },
     "variables": {},
@@ -136,7 +139,28 @@
                         }
                     ]
                 }
-            }
+            },
+            "resources": [
+                {
+                    "name": "[concat('script_', concat(parameters('vm_name')))]",
+                    "type": "extenstions",
+                    "location": "westeurope",
+                    "apiVersion": "2019-03-01",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Compute/virtualMachines', parameters('vm_name'))]"
+                    ],
+                    "properties": {
+                        "publisher": "Microsoft.Azure.Extensions",
+                        "type": "CustomScript",
+                        "typeHandlerVersion": "2.0",
+                        "autoUpgradeMinorVersion": true,
+                        "settings": {},
+                        "protectedSettings": {
+                            "commandToExecute": "[parameters('script')]"
+                        }
+                    }
+                }
+            ]
         }
     ]
 }

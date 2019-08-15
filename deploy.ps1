@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$rg = 'rg_docker4'
+$rg = 'rg_docker'
 
 Write-Host 'Deploying resource group'
 az deployment create `
@@ -15,23 +15,32 @@ az group deployment create `
     -g $rg `
     --template-file .\docker_network.json `
 
-Write-Host 'Deploying ucp'
+Write-Host 'Deploying ucp vm'
 az group deployment create `
     --name d_ucp `
     -g $rg `
     --template-file .\docker_vm.json `
     --parameters .\docker_vm.ucp.parameters.json
 
-Write-Host 'Deploying dtr'
+Write-Host 'Deploying dtr vm'
 az group deployment create `
     --name d_dtr `
     -g $rg `
     --template-file .\docker_vm.json `
     --parameters .\docker_vm.dtr.parameters.json
 
-Write-Host 'Deploying resource wkr'
+Write-Host 'Deploying wkr vm'
 az group deployment create `
     --name d_wkr `
     -g $rg `
     --template-file .\docker_vm.json `
     --parameters .\docker_vm.wkr.parameters.json
+
+Write-Host 'Deploying test vm'
+az group deployment create `
+    --name d_test `
+    -g $rg `
+    --template-file .\docker_vm.json `
+    --parameters .\docker_vm.test.parameters.json
+
+    
