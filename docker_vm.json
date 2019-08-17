@@ -14,7 +14,13 @@
         "vnet_name": {
             "type": "string"
         },
-        "script": {
+        "ssh":{
+            "type": "securestring"
+        },
+        "storage_account_name": {
+            "type": "string"
+        },
+        "storage_account_key": {
             "type": "string"
         }
     },
@@ -86,21 +92,16 @@
             "dependsOn": [
                 "[resourceId('Microsoft.Network/networkInterfaces', parameters('nic_name'))]"
             ],
-            "plan": {
-                "name": "containers",
-                "product": "clear-linux-os",
-                "publisher": "clear-linux-project"
-            },
             "properties": {
                 "hardwareProfile": {
-                    "vmSize": "Standard_D1"
+                    "vmSize": "Standard_D2s_v3"
                 },
                 "storageProfile": {
                     "imageReference": {
-                        "publisher": "clear-linux-project",
-                        "offer": "clear-linux-os",
-                        "sku": "containers",
-                        "version": "29810.0.0"
+                        "publisher": "OpenLogic",
+                        "offer": "CentOS",
+                        "sku": "7.6",
+                        "version": "latest"
                     },
                     "osDisk": {
                         "osType": "Linux",
@@ -108,9 +109,9 @@
                         "createOption": "FromImage",
                         "caching": "ReadWrite",
                         "managedDisk": {
-                            "storageAccountType": "StandardSSD_LRS"
+                            "storageAccountType": "Premium_LRS"
                         },
-                        "diskSizeGB": 20
+                        "diskSizeGB": 30
                     },
                     "dataDisks": []
                 },
@@ -123,7 +124,7 @@
                             "publicKeys": [
                                 {
                                     "path": "/home/bravo/.ssh/authorized_keys",
-                                    "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC6KKNcjy35YVgZvO29xuUn/KmmQWa6Azj7BydrwCD9aZRP8vtS6iRmigibWBePBeBOqKUj90qzAOgHT5Vta3PESap9SbXEaLw4yChE3ZIciBXNI8dE5og5ntDRbUi/Fbe2JJnkd43nQ0yr4XvobRsxIJkL1hciHPlvM3F+83kPOU6/YIcafYwnXOjGgRqLptq9AAoJlvjAbZBGRvWU34O4WdeMdcvCySinbyQxB72sOR7wcQKNKoZX/8LQwXufbqdY6TGVCGiE04OemgeksMglyetRxRYyql3F98qZXrCvUE04eryo9W/VMZd/Zj7KPoBz87LQBmyZCXPoIAeeFdMKob7KlayPHvDI+9FY1KO+gsWTs1ceA3o5DZ/s71duCCi2IEfyxdfwivBYHoVV7yMd9uBe5NFAqr+jU9HVs/v0U0DM3L+BT8SEhNhs+ZRm5ejWGdVLpZINqkw3gFkQ1ygqQ/QPaLkgNsku8hpRnfgLzqtJ//tpbc46NI/630Ucb/cEsvsYeOAC12KinEjPNhlWYSJAhVQG80Z8gGtOJEUc3wVWmVRwRYI/jw7FrWZy65tKEMI7N82xUBkSXJ5Cdvq8p6GHPBn5s3vpHeaUyoXPwqTdNmrs7AG9TRhrju4m261L8ord/c/RKgSiSFj60QJLb+sDUF/PBiOiS1jUHWGFLw== bartlomiej.czudek@capgemini.com"
+                                    "keyData": "[parameters('ssh')]"
                                 }
                             ]
                         },
@@ -142,8 +143,8 @@
             },
             "resources": [
                 {
-                    "name": "[concat('script_', concat(parameters('vm_name')))]",
-                    "type": "extenstions",
+                    "name": "[concat('script_install_docker', concat(parameters('vm_name')))]",
+                    "type": "extensions",
                     "location": "westeurope",
                     "apiVersion": "2019-03-01",
                     "dependsOn": [
@@ -156,7 +157,10 @@
                         "autoUpgradeMinorVersion": true,
                         "settings": {},
                         "protectedSettings": {
-                            "commandToExecute": "[parameters('script')]"
+                            "commandToExecute": "sh installDocker.sh",
+                            "storageAccountName": "[parameters('storage_account_name')]",
+                            "storageAccountKey": "[parameters('storage_account_key')]",
+                            "fileUris": ["https://scriptstoragedocker.blob.core.windows.net/scripts/installDocker.sh"]
                         }
                     }
                 }
