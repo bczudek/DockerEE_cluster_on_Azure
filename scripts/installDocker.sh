@@ -9,7 +9,6 @@ sudo -E yum-config-manager --add-repo "$DOCKERURL/centos/docker-ee.repo"
 sudo yum -y install docker-ee docker-ee-cli containerd.io
 sudo systemctl start docker
 sudo systemctl enable docker
-sudo groupadd docker
 sudo usermod -aG docker bravo
 
 sudo mkdir -p /etc/kubernetes

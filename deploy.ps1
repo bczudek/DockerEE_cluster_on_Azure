@@ -1,8 +1,8 @@
 $ErrorActionPreference = "Stop"
 
-$rg = 'rg_docker3'
+$rg = 'rg_docker'
 
-$sp_name = "dockersp3"
+$sp_name = "dockersp"
 $sp = ((az ad sp create-for-rbac --name $sp_name) | ConvertFrom-Json)
 $assignment = (az role assignment create --assignee ("http://$($sp_name)") --role "Contributor" )
 
@@ -23,7 +23,7 @@ $vnet_name = 'vnet_docker'
 $vnet_id = ((az network vnet show -g $rg -n $vnet_name) | ConvertFrom-Json).id
 
 # Write-Host 'Deploying storage account'
-$storageName = "scriptstoragedocker3"
+$storageName = "scriptstoragedocker"
 az group deployment create `
     --name d_sa `
     -g $rg `
