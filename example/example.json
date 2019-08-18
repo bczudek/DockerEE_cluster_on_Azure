@@ -1,0 +1,1063 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "dockerEEURL": {
+            "type": "securestring"
+        },
+        "instances": {
+            "type": "object",
+            "defaultValue": {
+                "managers": 3,
+                "dtr": 3,
+                "workers": {
+                    "linux": 3,
+                    "windows": 0
+                }
+            }
+        },
+        "scripts": {
+            "type": "object",
+            "defaultValue": {
+                "installDockerEE": "https://raw.githubusercontent.com/Microsoft/Docker-EE-on-Azure-Stack-Deployment/master/multi-node/install-docker-ee.sh",
+                "installUCP": "https://raw.githubusercontent.com/Microsoft/Docker-EE-on-Azure-Stack-Deployment/master/multi-node/install-ucp.sh",
+                "installDTR": "https://raw.githubusercontent.com/Microsoft/Docker-EE-on-Azure-Stack-Deployment/master/multi-node/install-dtr.sh"
+            }
+        },
+        "credentials": {
+            "type": "object",
+            "defaultValue": {
+                "adminUsername": "eeadmin",
+                "adminPassword": "Docker123!"
+            }
+        },
+        "versions": {
+            "type": "object",
+            "defaultValue": {
+                "engine": "stable-18.09",
+                "ucp": "latest",
+                "dtr": "latest"
+            }
+        },
+        "domainPrefix": {
+            "type": "string"
+        }
+    },
+    "variables": {
+        "labName": "[parameters('domainPrefix')]",
+        "shared": {
+            "storage": {
+                "name": "[concat('sa', uniqueString(resourceGroup().id))]",
+                "type": "Premium_LRS",
+                "vhdContainerName": "vhd"
+            },
+            "networking": {
+                "name": "vnet",
+                "addressPrefixes": [
+                    "10.0.0.0/16"
+                ],
+                "subnets": [
+                    {
+                        "name": "nodes",
+                        "properties": {
+                            "addressPrefix": "10.0.0.0/24"
+                        }
+                    }
+                ]
+            }
+        },
+        "managers": {
+            "instances": "[parameters('instances').managers]",
+            "avSet": "managers",
+            "subnet": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('shared').networking.name, 'nodes')]",
+            "vmSize": "Standard_DS2_v2",
+            "imageReference": {
+                "publisher": "Canonical",
+                "offer": "UbuntuServer",
+                "sku": "16.04-LTS",
+                "version": "latest"
+            }
+        },
+        "dtr": {
+            "instances": "[parameters('instances').dtr]",
+            "avSet": "dtr",
+            "subnet": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('shared').networking.name, 'nodes')]",
+            "vmSize": "Standard_DS2_v2",
+            "imageReference": {
+                "publisher": "Canonical",
+                "offer": "UbuntuServer",
+                "sku": "16.04-LTS",
+                "version": "latest"
+            }
+        },
+        "workers-linux": {
+            "instances": "[parameters('instances').workers.linux]",
+            "avSet": "workers-linux",
+            "subnet": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('shared').networking.name, 'nodes')]",
+            "vmSize": "Standard_DS2_v2",
+            "imageReference": {
+                "publisher": "Canonical",
+                "offer": "UbuntuServer",
+                "sku": "16.04-LTS",
+                "version": "latest"
+            }
+        },
+        "api": {
+            "availabilitySets": "2017-03-30",
+            "loadBalancers": "2017-10-01",
+            "networkInterfaces": "2017-10-01",
+            "publicIPAddresses": "2017-10-01",
+            "storageAccounts": "2016-01-01",
+            "virtualMachines": "2017-03-30",
+            "virtualNetwork": "2017-10-01"
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[toLower(variables('shared').storage.name)]",
+            "apiVersion": "[variables('api').storageAccounts]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "StorageAccount"
+            },
+            "properties": {
+                "accountType": "[variables('shared').storage.type]"
+            }
+        },
+        {
+            "apiVersion": "[variables('api').virtualNetwork]",
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "vnet",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "Virtual Network"
+            },
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": "[variables('shared').networking.addressPrefixes]"
+                },
+                "subnets": "[variables('shared').networking.subnets]"
+            }
+        },
+        {
+            "type": "Microsoft.Compute/availabilitySets",
+            "name": "[variables('managers').avSet]",
+            "apiVersion": "[variables('api').availabilitySets]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "Availability Set - Managers"
+            },
+            "sku": {
+                "name": "Aligned"
+            },
+            "properties": {
+                "platformFaultDomainCount": 2,
+                "platformUpdateDomainCount": 5
+            }
+        },
+        {
+            "type": "Microsoft.Compute/availabilitySets",
+            "name": "[variables('dtr').avSet]",
+            "apiVersion": "[variables('api').availabilitySets]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "Availability Set - DTR"
+            },
+            "sku": {
+                "name": "Aligned"
+            },
+            "properties": {
+                "platformFaultDomainCount": 2,
+                "platformUpdateDomainCount": 5
+            }
+        },
+        {
+            "type": "Microsoft.Compute/availabilitySets",
+            "name": "[variables('workers-linux').avSet]",
+            "apiVersion": "[variables('api').availabilitySets]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "Availability Set - Workers (Linux)"
+            },
+            "sku": {
+                "name": "Aligned"
+            },
+            "properties": {
+                "platformFaultDomainCount": 2,
+                "platformUpdateDomainCount": 5
+            }
+        },
+        {
+            "apiVersion": "[variables('api').publicIPAddresses]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "ucp",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PIP - UCP"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[concat('ucp-', variables('labName'))]"
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('api').publicIPAddresses]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[concat('manager-', padLeft(copyIndex(1), 2, '0'))]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PIP - Managers"
+            },
+            "copy": {
+                "name": "PIPCopy",
+                "count": "[variables('managers').instances]"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[concat(variables('labName'), '-manager', padLeft(copyIndex(1), 2, '0'))]"
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('api').publicIPAddresses]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "dtr",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PIP - DTR"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[concat('dtr-', variables('labName'))]"
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('api').publicIPAddresses]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[concat('dtr-', padLeft(copyIndex(1), 2, '0'))]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PIP - DTR Workers"
+            },
+            "copy": {
+                "name": "PIPCopy",
+                "count": "[variables('dtr').instances]"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[concat(variables('labName'), '-dtr', padLeft(copyIndex(1), 2, '0'))]"
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('api').publicIPAddresses]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "apps",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PIP - Apps"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[concat('apps-', variables('labName'))]"
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('api').publicIPAddresses]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[concat('worker-linux-', padLeft(copyIndex(1), 2, '0'))]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PIP - Linux Workers"
+            },
+            "copy": {
+                "name": "PIPCopy",
+                "count": "[variables('workers-linux').instances]"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[concat(variables('labName'), '-worker-linux-', padLeft(copyIndex(1), 2, '0'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/loadBalancers",
+            "name": "ucp",
+            "apiVersion": "[variables('api').loadBalancers]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "LB - UCP"
+            },
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "LoadBalancerFrontEnd",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'ucp')]"
+                            }
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "LoadBalancerBackEnd"
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "tcp443",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations', 'ucp', 'LoadBalancerFrontEnd')]"
+                            },
+                            "frontendPort": 443,
+                            "backendPort": 443,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "Tcp",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'ucp', 'LoadBalancerBackEnd')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', 'ucp', 'tcp443')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "tcp6443",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations', 'ucp', 'LoadBalancerFrontEnd')]"
+                            },
+                            "frontendPort": 6443,
+                            "backendPort": 6443,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "Tcp",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'ucp', 'LoadBalancerBackEnd')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', 'ucp', 'tcp6443')]"
+                            }
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "tcp443",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 443,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    },
+                    {
+                        "name": "tcp6443",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 6443,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', 'ucp')]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/loadBalancers",
+            "name": "dtr",
+            "apiVersion": "[variables('api').loadBalancers]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "LB - DTR"
+            },
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "LoadBalancerFrontEnd",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'dtr')]"
+                            }
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "LoadBalancerBackEnd"
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "tcp80",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations', 'dtr', 'LoadBalancerFrontEnd')]"
+                            },
+                            "frontendPort": 80,
+                            "backendPort": 80,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "Tcp",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'dtr', 'LoadBalancerBackEnd')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', 'dtr', 'tcp80')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "tcp443",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations', 'dtr', 'LoadBalancerFrontEnd')]"
+                            },
+                            "frontendPort": 443,
+                            "backendPort": 443,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "Tcp",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'dtr', 'LoadBalancerBackEnd')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', 'dtr', 'tcp443')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "tcp8080",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations', 'dtr', 'LoadBalancerFrontEnd')]"
+                            },
+                            "frontendPort": 8080,
+                            "backendPort": 8080,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "Tcp",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'dtr', 'LoadBalancerBackEnd')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', 'dtr', 'tcp8080')]"
+                            }
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "tcp80",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 80,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    },
+                    {
+                        "name": "tcp443",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 443,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    },
+                    {
+                        "name": "tcp8080",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 8080,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', 'dtr')]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/loadBalancers",
+            "name": "apps",
+            "apiVersion": "[variables('api').loadBalancers]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "LB - Apps"
+            },
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "LoadBalancerFrontEnd",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'apps')]"
+                            }
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "LoadBalancerBackEnd"
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "tcp80",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations', 'apps', 'LoadBalancerFrontEnd')]"
+                            },
+                            "frontendPort": 80,
+                            "backendPort": 80,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "Tcp",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'apps', 'LoadBalancerBackEnd')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', 'apps', 'tcp80')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "tcp443",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations', 'apps', 'LoadBalancerFrontEnd')]"
+                            },
+                            "frontendPort": 443,
+                            "backendPort": 443,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "Tcp",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'apps', 'LoadBalancerBackEnd')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', 'apps', 'tcp443')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "tcp8080",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations', 'apps', 'LoadBalancerFrontEnd')]"
+                            },
+                            "frontendPort": 8080,
+                            "backendPort": 8080,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "Tcp",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'apps', 'LoadBalancerBackEnd')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', 'apps', 'tcp8080')]"
+                            }
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "tcp80",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 80,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    },
+                    {
+                        "name": "tcp443",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 443,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    },
+                    {
+                        "name": "tcp8080",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 8080,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', 'apps')]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[concat('manager-', padLeft(copyIndex(1), 2, '0'))]",
+            "apiVersion": "[variables('api').networkInterfaces]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "NIC - Managers"
+            },
+            "copy": {
+                "name": "NICCopy",
+                "count": "[variables('managers').instances]"
+            },
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig",
+                        "properties": {
+                            "primary": "true",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat('manager-', padLeft(copyIndex(1), 2, '0')))]"
+                            },
+                            "subnet": {
+                                "id": "[variables('managers').subnet]"
+                            },
+                            "loadBalancerBackendAddressPools": [
+                                {
+                                    "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'ucp', 'LoadBalancerBackEnd')]"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', 'vnet')]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat('manager-', padLeft(copyIndex(1), 2, '0')))]",
+                "[resourceId('Microsoft.Network/loadBalancers', 'ucp')]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[concat('dtr-', padLeft(copyIndex(1), 2, '0'))]",
+            "apiVersion": "[variables('api').networkInterfaces]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "NIC - DTRs"
+            },
+            "copy": {
+                "name": "NICCopy",
+                "count": "[variables('dtr').instances]"
+            },
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig",
+                        "properties": {
+                            "primary": "true",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat('dtr-', padLeft(copyIndex(1), 2, '0')))]"
+                            },
+                            "subnet": {
+                                "id": "[variables('managers').subnet]"
+                            },
+                            "loadBalancerBackendAddressPools": [
+                                {
+                                    "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'dtr', 'LoadBalancerBackEnd')]"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', 'vnet')]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat('dtr-', padLeft(copyIndex(1), 2, '0')))]",
+                "[resourceId('Microsoft.Network/loadBalancers', 'dtr')]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[concat('worker-linux-', padLeft(copyIndex(1), 2, '0'))]",
+            "apiVersion": "[variables('api').networkInterfaces]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "NIC - Linux Workers"
+            },
+            "copy": {
+                "name": "NICCopy",
+                "count": "[variables('workers-linux').instances]"
+            },
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig",
+                        "properties": {
+                            "primary": "true",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat('worker-linux-', padLeft(copyIndex(1), 2, '0')))]"
+                            },
+                            "subnet": {
+                                "id": "[variables('managers').subnet]"
+                            },
+                            "loadBalancerBackendAddressPools": [
+                                {
+                                    "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'apps', 'LoadBalancerBackEnd')]"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', 'vnet')]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat('worker-linux-', padLeft(copyIndex(1), 2, '0')))]",
+                "[resourceId('Microsoft.Network/loadBalancers', 'apps')]"
+            ]
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "manager-01",
+            "apiVersion": "[variables('api').virtualMachines]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "VM - Manager01"
+            },
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[variables('managers').vmSize]"
+                },
+                "storageProfile": {
+                    "imageReference": "[variables('managers').imageReference]",
+                    "osDisk": {
+                        "diskSizeGB": 128,
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS"
+                        },
+                        "createOption": "FromImage"
+                    }
+                },
+                "osProfile": {
+                    "computerName": "manager01",
+                    "adminUsername": "[parameters('credentials').adminUsername]",
+                    "adminPassword": "[parameters('credentials').adminPassword]"
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', 'manager-01')]"
+                        }
+                    ]
+                },
+                "availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', 'managers')]"
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/availabilitySets', variables('managers').avSet)]",
+                "[resourceId('Microsoft.Network/networkInterfaces', 'manager-01')]"
+            ],
+            "resources": [
+                {
+                    "name": "InstallDockerEE",
+                    "type": "extensions",
+                    "location": "[resourceGroup().location]",
+                    "apiVersion": "[variables('api').virtualMachines]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Compute/virtualMachines', 'manager-01')]",
+                        "[resourceId('Microsoft.Network/publicIPAddresses', 'ucp')]"
+                    ],
+                    "tags": {
+                        "displayName": "InstallDocker"
+                    },
+                    "properties": {
+                        "publisher": "Microsoft.Azure.Extensions",
+                        "type": "CustomScript",
+                        "typeHandlerVersion": "2.0",
+                        "autoUpgradeMinorVersion": true,
+                        "settings": {
+                            "fileUris": [
+                                "[parameters('scripts').installDockerEE]",
+                                "[parameters('scripts').installUCP]"
+                            ],
+                            "commandToExecute": "[concat('sh install-docker-ee.sh', ' ', parameters('dockerEEURL'), ' ', parameters('versions').engine, ' && sh install-ucp.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'apps')).dnsSettings.fqdn, ' Manager ', parameters('versions').ucp)]"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "copy": {
+                "name": "VMCopy",
+                "count": "[sub(variables('managers').instances, 1)]"
+            },
+            "name": "[concat('manager-', padLeft(copyIndex(2), 2, '0'))]",
+            "apiVersion": "[variables('api').virtualMachines]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "VM - Managers"
+            },
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[variables('managers').vmSize]"
+                },
+                "storageProfile": {
+                    "imageReference": "[variables('managers').imageReference]",
+                    "osDisk": {
+                        "diskSizeGB": 128,
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS"
+                        },
+                        "createOption": "FromImage"
+                    }
+                },
+                "osProfile": {
+                    "computerName": "[concat('manager', padLeft(copyIndex(2), 2, '0'))]",
+                    "adminUsername": "[parameters('credentials').adminUsername]",
+                    "adminPassword": "[parameters('credentials').adminPassword]"
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat('manager-', padLeft(copyIndex(2), 2, '0')))]"
+                        }
+                    ]
+                },
+                "availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', 'managers')]"
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/availabilitySets', variables('managers').avSet)]",
+                "[resourceId('Microsoft.Network/networkInterfaces', concat('manager-', padLeft(copyIndex(2), 2, '0')))]"
+            ],
+            "resources": [
+                {
+                    "name": "InstallDockerEE",
+                    "type": "extensions",
+                    "location": "[resourceGroup().location]",
+                    "apiVersion": "[variables('api').virtualMachines]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Compute/virtualMachines/extensions', 'manager-01', 'InstallDockerEE')]",
+                        "[resourceId('Microsoft.Compute/virtualMachines', concat('manager-', padLeft(copyIndex(2), 2, '0')))]",
+                        "[resourceId('Microsoft.Network/publicIPAddresses', 'ucp')]"
+                    ],
+                    "tags": {
+                        "displayName": "InstallDocker"
+                    },
+                    "properties": {
+                        "publisher": "Microsoft.Azure.Extensions",
+                        "type": "CustomScript",
+                        "typeHandlerVersion": "2.0",
+                        "autoUpgradeMinorVersion": true,
+                        "settings": {
+                            "fileUris": [
+                                "[parameters('scripts').installDockerEE]",
+                                "[parameters('scripts').installUCP]"
+                            ],
+                            "commandToExecute": "[concat('sh install-docker-ee.sh', ' ', parameters('dockerEEURL'), ' ', parameters('versions').engine, ' && sh install-ucp.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'apps')).dnsSettings.fqdn, ' Manager ', parameters('versions').ucp)]"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "copy": {
+                "name": "VMCopy",
+                "count": "[variables('dtr').instances]"
+            },
+            "name": "[concat('dtr-', padLeft(copyIndex(1), 2, '0'))]",
+            "apiVersion": "[variables('api').virtualMachines]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "VM - DTRs"
+            },
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[variables('dtr').vmSize]"
+                },
+                "storageProfile": {
+                    "imageReference": "[variables('dtr').imageReference]",
+                    "osDisk": {
+                        "diskSizeGB": 128,
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS"
+                        },
+                        "createOption": "FromImage"
+                    }
+                },
+                "osProfile": {
+                    "computerName": "[concat('dtr', padLeft(copyIndex(1), 2, '0'))]",
+                    "adminUsername": "[parameters('credentials').adminUsername]",
+                    "adminPassword": "[parameters('credentials').adminPassword]"
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat('dtr-', padLeft(copyIndex(1), 2, '0')))]"
+                        }
+                    ]
+                },
+                "availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', 'dtr')]"
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/availabilitySets', variables('dtr').avSet)]",
+                "[resourceId('Microsoft.Network/networkInterfaces', concat('dtr-', padLeft(copyIndex(1), 2, '0')))]"
+            ],
+            "resources": [
+                {
+                    "name": "InstallDockerEE",
+                    "type": "extensions",
+                    "location": "[resourceGroup().location]",
+                    "apiVersion": "[variables('api').virtualMachines]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Compute/virtualMachines/extensions', 'manager-01', 'InstallDockerEE')]",
+                        "[resourceId('Microsoft.Compute/virtualMachines', concat('dtr-', padLeft(copyIndex(1), 2, '0')))]",
+                        "[resourceId('Microsoft.Network/publicIPAddresses', 'dtr')]"
+                    ],
+                    "tags": {
+                        "displayName": "InstallDocker"
+                    },
+                    "properties": {
+                        "publisher": "Microsoft.Azure.Extensions",
+                        "type": "CustomScript",
+                        "typeHandlerVersion": "2.0",
+                        "autoUpgradeMinorVersion": true,
+                        "settings": {
+                            "fileUris": [
+                                "[parameters('scripts').installDockerEE]",
+                                "[parameters('scripts').installUCP]",
+                                "[parameters('scripts').installDTR]"
+                            ],
+                            "commandToExecute": "[concat('sh install-docker-ee.sh ', parameters('dockerEEURL'), ' ', parameters('versions').engine, ' && sh install-ucp.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'apps')).dnsSettings.fqdn, ' Worker ', parameters('versions').ucp, ' && sh install-dtr.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'dtr')).dnsSettings.fqdn, ' ', parameters('versions').dtr)]"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "copy": {
+                "name": "VMCopy",
+                "count": "[variables('workers-linux').instances]"
+            },
+            "name": "[concat('worker-linux-', padLeft(copyIndex(1), 2, '0'))]",
+            "apiVersion": "[variables('api').virtualMachines]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "VM - Linux Workers"
+            },
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[variables('workers-linux').vmSize]"
+                },
+                "storageProfile": {
+                    "imageReference": "[variables('workers-linux').imageReference]",
+                    "osDisk": {
+                        "diskSizeGB": 128,
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS"
+                        },
+                        "createOption": "FromImage"
+                    }
+                },
+                "osProfile": {
+                    "computerName": "[concat('worker-linux-', padLeft(copyIndex(1), 2, '0'))]",
+                    "adminUsername": "[parameters('credentials').adminUsername]",
+                    "adminPassword": "[parameters('credentials').adminPassword]"
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat('worker-linux-', padLeft(copyIndex(1), 2, '0')))]"
+                        }
+                    ]
+                },
+                "availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', 'workers-linux')]"
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/availabilitySets', variables('workers-linux').avSet)]",
+                "[resourceId('Microsoft.Network/networkInterfaces', concat('worker-linux-', padLeft(copyIndex(1), 2, '0')))]"
+            ],
+            "resources": [
+                {
+                    "name": "InstallDockerEE",
+                    "type": "extensions",
+                    "location": "[resourceGroup().location]",
+                    "apiVersion": "[variables('api').virtualMachines]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Compute/virtualMachines/extensions', 'manager-01', 'InstallDockerEE')]",
+                        "[resourceId('Microsoft.Compute/virtualMachines', concat('worker-linux-', padLeft(copyIndex(1), 2, '0')))]",
+                        "[resourceId('Microsoft.Network/publicIPAddresses', 'apps')]"
+                    ],
+                    "tags": {
+                        "displayName": "InstallDocker"
+                    },
+                    "properties": {
+                        "publisher": "Microsoft.Azure.Extensions",
+                        "type": "CustomScript",
+                        "typeHandlerVersion": "2.0",
+                        "autoUpgradeMinorVersion": true,
+                        "settings": {
+                            "fileUris": [
+                                "[parameters('scripts').installDockerEE]",
+                                "[parameters('scripts').installUCP]"
+                            ],
+                            "commandToExecute": "[concat('sh install-docker-ee.sh', ' ', parameters('dockerEEURL'), ' ', parameters('versions').engine, ' && sh install-ucp.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'apps')).dnsSettings.fqdn, ' Worker ', parameters('versions').ucp)]"
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "outputs": {
+        "ucp_FQDN": {
+            "type": "string",
+            "value": "[concat('https://', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn)]"
+        },
+        "dtr_FQDN": {
+            "type": "string",
+            "value": "[concat('https://', reference(resourceId('Microsoft.Network/publicIPAddresses', 'dtr')).dnsSettings.fqdn)]"
+        },
+        "dtr_Storage_Account": {
+            "type": "string",
+            "value": "[variables('shared').storage.name]"
+        },
+        "dtr_Storage_Key": {
+            "type": "string",
+            "value": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('shared').storage.name), '2016-01-01').keys[0].value]"
+        }
+    }
+}

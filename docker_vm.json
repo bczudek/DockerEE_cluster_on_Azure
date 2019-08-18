@@ -22,6 +22,18 @@
         },
         "storage_account_key": {
             "type": "string"
+        },
+        "aadClient_id": {
+            "type": "string"
+        },
+        "aad_client_secret": {
+            "type": "string"
+        },
+        "resource_group": {
+            "type": "string"
+        },
+        "security_group_name": {
+            "type": "string"
         }
     },
     "variables": {},
@@ -143,7 +155,7 @@
             },
             "resources": [
                 {
-                    "name": "[concat('script_install_docker', concat(parameters('vm_name')))]",
+                    "name": "[concat('script_install_docker', parameters('vm_name'))]",
                     "type": "extensions",
                     "location": "westeurope",
                     "apiVersion": "2019-03-01",
@@ -157,10 +169,10 @@
                         "autoUpgradeMinorVersion": true,
                         "settings": {},
                         "protectedSettings": {
-                            "commandToExecute": "sh installDocker.sh",
+                            "commandToExecute": "[concat('sh installDocker.sh', ' && sudo sh ucp.sh ', subscription().tenantId, ' ', subscription().subscriptionId, ' ', parameters('aadClient_id'), ' ', parameters('aad_client_secret'), ' ', parameters('resource_group'), ' ', parameters('security_group_name'))]",
                             "storageAccountName": "[parameters('storage_account_name')]",
                             "storageAccountKey": "[parameters('storage_account_key')]",
-                            "fileUris": ["https://scriptstoragedocker.blob.core.windows.net/scripts/installDocker.sh"]
+                            "fileUris": ["https://scriptstoragedocker.blob.core.windows.net/scripts/installDocker.sh", "https://scriptstoragedocker.blob.core.windows.net/scripts/ucp.sh"]
                         }
                     }
                 }

@@ -22,8 +22,8 @@ az group deployment create `
 $vnet_name = 'vnet_docker'
 $vnet_id = ((az network vnet show -g $rg -n $vnet_name) | ConvertFrom-Json).id
 
-Write-Host 'Deploying storage account'
-$storageName = "scriptstoragedocker2"
+# Write-Host 'Deploying storage account'
+$storageName = "scriptstoragedocker"
 az group deployment create `
     --name d_sa `
     -g $rg `
@@ -40,6 +40,8 @@ az storage blob upload-batch `
 
 $pip_ucp_name = 'vmucp-ip'
 Write-Host 'Deploying ucp vm'
+$appId = $sp.appId
+$pwd = $sp.password
 az group deployment create `
     --name d_ucp `
     -g $rg `
@@ -47,7 +49,10 @@ az group deployment create `
     --parameters .\docker_vm.ucp.parameters.json `
     --parameters storage_account_name=$storageName `
     --parameters storage_account_key=$storage_key `
-    --parameters pip_name=$pip_ucp_name
+    --parameters pip_name=$pip_ucp_name `
+    --parameters aadClient_id=$appId `
+    --parameters aad_client_secret=$pwd `
+    --parameters resource_group=$rg --debug
 
 $upc_ip = ((az network public-ip show -g $rg -n $pip_ucp_name) | ConvertFrom-Json).ipAddress
 $upc_ip
