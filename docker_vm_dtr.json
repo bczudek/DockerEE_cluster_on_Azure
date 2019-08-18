@@ -22,18 +22,6 @@
         },
         "storage_account_key": {
             "type": "string"
-        },
-        "aadClient_id": {
-            "type": "string"
-        },
-        "aad_client_secret": {
-            "type": "string"
-        },
-        "resource_group": {
-            "type": "string"
-        },
-        "security_group_name": {
-            "type": "string"
         }
     },
     "variables": {},
@@ -169,10 +157,10 @@
                         "autoUpgradeMinorVersion": true,
                         "settings": {},
                         "protectedSettings": {
-                            "commandToExecute": "[concat('sh installDocker.sh', ' && sh ucp.sh ', subscription().tenantId, ' ', subscription().subscriptionId, ' ', parameters('aadClient_id'), ' ', parameters('aad_client_secret'), ' ', parameters('resource_group'), ' ', parameters('security_group_name'))]",
+                            "commandToExecute": "[concat('sh installDocker.sh', ' sudo sh dtr.sh ', )]",
                             "storageAccountName": "[parameters('storage_account_name')]",
                             "storageAccountKey": "[parameters('storage_account_key')]",
-                            "fileUris": ["https://scriptstoragedocker.blob.core.windows.net/scripts/installDocker.sh", "https://scriptstoragedocker.blob.core.windows.net/scripts/ucp.sh"]
+                            "fileUris": ["https://scriptstoragedocker.blob.core.windows.net/scripts/installDocker.sh", "https://scriptstoragedocker.blob.core.windows.net/scripts/dtr.sh"]
                         }
                     }
                 }
