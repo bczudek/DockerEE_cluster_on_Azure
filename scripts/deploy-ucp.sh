@@ -21,52 +21,11 @@ readonly NODE_NAME=$(cat /etc/hostname)
 readonly UCP_ADMIN="admin"
 readonly UCP_PASSWORD="Docker123!"
 
-#azure configuration
-readonly TENANT_ID=$5
-readonly SUBSCRIPTION_ID=$6
-readonly AAD_CLIENT_ID=$7
-readonly AAD_CLIENT_SECRET=$8
-readonly RESOURCE_GROUP=$9
-readonly LOCATION="${10}"
-readonly SECURITY_GROUP_NAME="${11}"
-readonly VNET_NAME="${12}"
-
 # Install jq library for parsing JSON
 sudo yum install epel-release -y
 sudo yum install jq -y
 
 checkUCP() {
-
-    echo "setting up config for azure"
-    sudo cat <<EOT >> /etc/kubernetes/azure.json
-{
-    "cloud": "AzurePublicCloud",
-    "tenantId": "${TENANT_ID}",
-    "subscriptionId": "${SUBSCRIPTION_ID}",
-    "aadClientId": "${AAD_CLIENT_ID}",
-    "aadClientSecret": "${AAD_CLIENT_SECRET}",
-    "resourceGroup": "${RESOURCE_GROUP}",
-    "location": "${LOCATION}",
-    "subnetName": "default",
-    "securityGroupName": "${SECURITY_GROUP_NAME}",
-    "vnetName": "${VNET_NAME}",
-    "cloudProviderBackoff": false,
-    "cloudProviderBackoffRetries": 0,
-    "cloudProviderBackoffExponent": 0,
-    "cloudProviderBackoffDuration": 0,
-    "cloudProviderBackoffJitter": 0,
-    "cloudProviderRatelimit": false,
-    "cloudProviderRateLimitQPS": 0,
-    "cloudProviderRateLimitBucket": 0,
-    "useManagedIdentityExtension": false,
-    "useInstanceMetadata": true
-}
-EOT
-
-    sudo chmod 0644 /etc/kubernetes/azure.json
-
-    echo "finished azure configuration"
-
 
     # Check if UCP exists by attempting to hit its load balancer
     STATUS=$(curl --request GET --url "https://${UCP_FQDN}" --insecure --silent --output /dev/null -w '%{http_code}' --max-time 5)

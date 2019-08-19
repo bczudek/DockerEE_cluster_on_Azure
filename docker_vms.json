@@ -85,6 +85,18 @@
                 "version": "latest"
             }
         },
+        "dtr": {
+            "instances": "[parameters('instances').dtr]",
+            "avSet": "dtr",
+            "subnet": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('shared').networking.name, 'nodes')]",
+            "vmSize": "Standard_D2s_v3",
+            "imageReference": {
+                "publisher": "OpenLogic",
+                "offer": "CentOS",
+                "sku": "7.6",
+                "version": "latest"
+            }
+        },
         "api": {
             "availabilitySets": "2019-03-01",
             "loadBalancers": "2019-04-01",
@@ -99,6 +111,22 @@
             "name": "[variables('managers').avSet]",
             "apiVersion": "[variables('api').availabilitySets]",
             "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Aligned"
+            },
+            "properties": {
+                "platformFaultDomainCount": 2,
+                "platformUpdateDomainCount": 5
+            }
+        },
+        {
+            "type": "Microsoft.Compute/availabilitySets",
+            "name": "[variables('dtr').avSet]",
+            "apiVersion": "[variables('api').availabilitySets]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "Availability Set - DTR"
+            },
             "sku": {
                 "name": "Aligned"
             },
@@ -132,6 +160,40 @@
                 "publicIPAllocationMethod": "Dynamic",
                 "dnsSettings": {
                     "domainNameLabel": "[concat(variables('labName'), '-manager', padLeft(copyIndex(1), 2, '0'))]"
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('api').publicIPAddresses]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "dtr",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PIP - DTR"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[concat('dtr-', variables('labName'))]"
+                }
+            }
+        },
+        {
+            "apiVersion": "[variables('api').publicIPAddresses]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[concat('dtr-', padLeft(copyIndex(1), 2, '0'))]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PIP - DTR Workers"
+            },
+            "copy": {
+                "name": "PIPCopy",
+                "count": "[variables('dtr').instances]"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[concat(variables('labName'), '-dtr', padLeft(copyIndex(1), 2, '0'))]"
                 }
             }
         },
@@ -183,6 +245,44 @@
             "dependsOn": [
                 "[resourceId('Microsoft.Network/publicIPAddresses', concat('manager-', padLeft(copyIndex(1), 2, '0')))]",
                 "[resourceId('Microsoft.Network/loadBalancers', 'ucp')]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[concat('dtr-', padLeft(copyIndex(1), 2, '0'))]",
+            "apiVersion": "[variables('api').networkInterfaces]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "NIC - DTRs"
+            },
+            "copy": {
+                "name": "NICCopy",
+                "count": "[variables('dtr').instances]"
+            },
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig",
+                        "properties": {
+                            "primary": "true",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat('dtr-', padLeft(copyIndex(1), 2, '0')))]"
+                            },
+                            "subnet": {
+                                "id": "[variables('managers').subnet]"
+                            },
+                            "loadBalancerBackendAddressPools": [
+                                {
+                                    "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'dtr', 'LoadBalancerBackEnd')]"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat('dtr-', padLeft(copyIndex(1), 2, '0')))]",
+                "[resourceId('Microsoft.Network/loadBalancers', 'dtr')]"
             ]
         },
         {
@@ -275,6 +375,127 @@
             ]
         },
         {
+            "type": "Microsoft.Network/loadBalancers",
+            "name": "dtr",
+            "apiVersion": "[variables('api').loadBalancers]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "LB - DTR"
+            },
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "LoadBalancerFrontEnd",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'dtr')]"
+                            }
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "LoadBalancerBackEnd"
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "tcp80",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations', 'dtr', 'LoadBalancerFrontEnd')]"
+                            },
+                            "frontendPort": 80,
+                            "backendPort": 80,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "Tcp",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'dtr', 'LoadBalancerBackEnd')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', 'dtr', 'tcp80')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "tcp443",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations', 'dtr', 'LoadBalancerFrontEnd')]"
+                            },
+                            "frontendPort": 443,
+                            "backendPort": 443,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "Tcp",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'dtr', 'LoadBalancerBackEnd')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', 'dtr', 'tcp443')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "tcp8080",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations', 'dtr', 'LoadBalancerFrontEnd')]"
+                            },
+                            "frontendPort": 8080,
+                            "backendPort": 8080,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "Tcp",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', 'dtr', 'LoadBalancerBackEnd')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', 'dtr', 'tcp8080')]"
+                            }
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "tcp80",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 80,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    },
+                    {
+                        "name": "tcp443",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 443,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    },
+                    {
+                        "name": "tcp8080",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 8080,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', 'dtr')]"
+            ]
+        },
+        {
             "type": "Microsoft.Compute/virtualMachines",
             "name": "manager-01",
             "apiVersion": "[variables('api').virtualMachines]",
@@ -345,11 +566,12 @@
                         "autoUpgradeMinorVersion": true,
                         "settings": {},
                         "protectedSettings": {
-                            "commandToExecute": "[concat('sh installDocker.sh', ' && sh deploy-ucp.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'apps')).dnsSettings.fqdn, ' Manager ', parameters('versions').ucp, ' ', subscription().tenantId, ' ', subscription().subscriptionId, ' ', parameters('aadClient_id'), ' ', parameters('aad_client_secret'), ' ', resourceGroup().name, ' ', resourceGroup().location, ' ', parameters('security_group_name'), ' ', parameters('vnet_name'))]",
+                            "commandToExecute": "[concat('sh installDocker.sh', ' && sh deploy-azureconfig.sh ', subscription().tenantId, ' ', subscription().subscriptionId, ' ', parameters('aadClient_id'), ' ', parameters('aad_client_secret'), ' ', resourceGroup().name, ' ', resourceGroup().location, ' ', parameters('security_group_name'), ' ', parameters('vnet_name'), ' && sh deploy-ucp.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'apps')).dnsSettings.fqdn, ' Manager ', parameters('versions').ucp)]",
                             "storageAccountName": "[parameters('storage_account_name')]",
                             "storageAccountKey": "[parameters('storage_account_key')]",
                             "fileUris": [
                                 "[concat('https://', parameters('sa_name'), '.blob.core.windows.net/scripts/installDocker.sh')]",
+                                "[concat('https://', parameters('sa_name'), '.blob.core.windows.net/scripts/deploy-azureconfig.sh')]",
                                 "[concat('https://', parameters('sa_name'), '.blob.core.windows.net/scripts/deploy-ucp.sh')]"
                             ]
                         }
@@ -433,11 +655,12 @@
                         "autoUpgradeMinorVersion": true,
                         "settings": {},
                         "protectedSettings": {
-                            "commandToExecute": "[concat('sh installDocker.sh', ' && sh deploy-ucp.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'apps')).dnsSettings.fqdn, ' Manager ', parameters('versions').ucp, ' ', subscription().tenantId, ' ', subscription().subscriptionId, ' ', parameters('aadClient_id'), ' ', parameters('aad_client_secret'), ' ', resourceGroup().name, ' ', resourceGroup().location, ' ', parameters('security_group_name'), ' ', parameters('vnet_name'))]",
+                            "commandToExecute": "[concat('sh installDocker.sh', ' && sh deploy-azureconfig.sh ', subscription().tenantId, ' ', subscription().subscriptionId, ' ', parameters('aadClient_id'), ' ', parameters('aad_client_secret'), ' ', resourceGroup().name, ' ', resourceGroup().location, ' ', parameters('security_group_name'), ' ', parameters('vnet_name'), ' && sh deploy-ucp.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'apps')).dnsSettings.fqdn, ' Manager ', parameters('versions').ucp)]",
                             "storageAccountName": "[parameters('storage_account_name')]",
                             "storageAccountKey": "[parameters('storage_account_key')]",
                             "fileUris": [
                                 "[concat('https://', parameters('sa_name'), '.blob.core.windows.net/scripts/installDocker.sh')]",
+                                "[concat('https://', parameters('sa_name'), '.blob.core.windows.net/scripts/deploy-azureconfig.sh')]",
                                 "[concat('https://', parameters('sa_name'), '.blob.core.windows.net/scripts/deploy-ucp.sh')]"
                             ]
                         }
