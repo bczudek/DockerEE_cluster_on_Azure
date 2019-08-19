@@ -356,6 +356,94 @@
                     }
                 }
             ]
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "copy": {
+                "name": "VMCopy",
+                "count": "[sub(variables('managers').instances, 1)]"
+            },
+            "name": "[concat('manager-', padLeft(copyIndex(2), 2, '0'))]",
+            "apiVersion": "[variables('api').virtualMachines]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[variables('managers').vmSize]"
+                },
+                "storageProfile": {
+                    "imageReference": "[variables('managers').imageReference]",
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat('manager-', padLeft(copyIndex(2), 2, '0'), '-OsDisk_1_')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS"
+                        },
+                        "diskSizeGB": 128
+                    }
+                },
+                "osProfile": {
+                    "computerName": "[concat('manager-', padLeft(copyIndex(2), 2, '0'))]",
+                    "adminUsername": "bravo",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": true,
+                        "ssh": {
+                            "publicKeys": [
+                                {
+                                    "path": "/home/bravo/.ssh/authorized_keys",
+                                    "keyData": "[parameters('ssh')]"
+                                }
+                            ]
+                        },
+                        "provisionVMAgent": true
+                    },
+                    "secrets": [],
+                    "allowExtensionOperations": true
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat('manager-', padLeft(copyIndex(2), 2, '0')))]"
+                        }
+                    ]
+                },
+                "availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', 'managers')]"
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/availabilitySets', variables('managers').avSet)]",
+                "[resourceId('Microsoft.Network/networkInterfaces', concat('manager-', padLeft(copyIndex(2), 2, '0')))]"
+            ],
+            "resources": [
+                {
+                    "name": "DeployDockerEE",
+                    "type": "extensions",
+                    "location": "[resourceGroup().location]",
+                    "apiVersion": "[variables('api').virtualMachines]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Compute/virtualMachines/extensions', 'manager-01', 'DeployDockerEE')]",
+                        "[resourceId('Microsoft.Compute/virtualMachines', concat('manager-', padLeft(copyIndex(2), 2, '0')))]"
+                    ],
+                    "properties": {
+                        "publisher": "Microsoft.Azure.Extensions",
+                        "type": "CustomScript",
+                        "typeHandlerVersion": "2.0",
+                        "autoUpgradeMinorVersion": true,
+                        "settings": {},
+                        "protectedSettings": {
+                            "commandToExecute": "[concat('sh installDocker.sh', ' && sh deploy-ucp.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'apps')).dnsSettings.fqdn, ' Manager ', parameters('versions').ucp, ' ', subscription().tenantId, ' ', subscription().subscriptionId, ' ', parameters('aadClient_id'), ' ', parameters('aad_client_secret'), ' ', resourceGroup().name, ' ', resourceGroup().location, ' ', parameters('security_group_name'), ' ', parameters('vnet_name'))]",
+                            "storageAccountName": "[parameters('storage_account_name')]",
+                            "storageAccountKey": "[parameters('storage_account_key')]",
+                            "fileUris": [
+                                "[concat('https://', parameters('sa_name'), '.blob.core.windows.net/scripts/installDocker.sh')]",
+                                "[concat('https://', parameters('sa_name'), '.blob.core.windows.net/scripts/deploy-ucp.sh')]"
+                            ]
+                        }
+                    }
+                }
+            ]
         }
     ]
 }

@@ -37,38 +37,6 @@ sudo yum install jq -y
 
 checkUCP() {
 
-    # Check if UCP exists by attempting to hit its load balancer
-    STATUS=$(curl --request GET --url "https://${UCP_FQDN}" --insecure --silent --output /dev/null -w '%{http_code}' --max-time 5)
-    
-    echo "checkUCP: API status for ${UCP_FQDN} returned as: ${STATUS}"
-
-    if [ "$STATUS" -eq 200 ]; then
-        echo "checkUCP: Successfully queried the UCP API. UCP is installed. Joining node to existing cluster."
-        joinUCP
-    else
-        echo "checkUCP: Failed to query the UCP API. UCP is not installed. Installing UCP."
-        installUCP
-    fi
-
-}
-
-installUCP() {
-    echo "${UCP_FQDN}"
-    echo "${APPS_LB_FQDN}"
-    echo "${NODE_ROLE}"
-    echo "${UCP_VERSION}"
-    echo "${NODE_NAME}"
-    echo "${UCP_ADMIN}"
-    echo "${UCP_PASSWORD}"
-    echo "${TENANT_ID}"
-    echo "${SUBSCRIPTION_ID}"
-    echo "${AAD_CLIENT_ID}"
-    echo "${AAD_CLIENT_SECRET}"
-    echo "${RESOURCE_GROUP}"
-    echo "${LOCATION}"
-    echo "${SECURITY_GROUP_NAME}"
-    echo "${VNET_NAME}"
-
     echo "setting up config for azure"
     sudo cat <<EOT >> /etc/kubernetes/azure.json
 {
@@ -99,6 +67,23 @@ EOT
 
     echo "finished azure configuration"
 
+
+    # Check if UCP exists by attempting to hit its load balancer
+    STATUS=$(curl --request GET --url "https://${UCP_FQDN}" --insecure --silent --output /dev/null -w '%{http_code}' --max-time 5)
+    
+    echo "checkUCP: API status for ${UCP_FQDN} returned as: ${STATUS}"
+
+    if [ "$STATUS" -eq 200 ]; then
+        echo "checkUCP: Successfully queried the UCP API. UCP is installed. Joining node to existing cluster."
+        joinUCP
+    else
+        echo "checkUCP: Failed to query the UCP API. UCP is not installed. Installing UCP."
+        installUCP
+    fi
+
+}
+
+installUCP() {
     echo "installUCP: Installing Docker Universal Control Plane (UCP)"
 
     # Install Universal Control Plane
@@ -115,12 +100,12 @@ EOT
         --san "${UCP_FQDN}" \
         --external-service-lb "${APPS_LB_FQDN}"
 
-    # Wait for node to reach a ready state
-    # until [ $(curl --request GET --url "https://${UCP_FQDN}/_ping" --insecure --silent --header 'Accept: application/json' | grep OK) ]
-    # do
-    #     echo '...created cluster, waiting for a ready state'
-    #     sleep 5
-    # done
+    #Wait for node to reach a ready state
+    until [ $(curl --request GET --url "https://${UCP_FQDN}/_ping" --insecure --silent --header 'Accept: application/json' | grep OK) ]
+    do
+        echo '...created cluster, waiting for a ready state'
+        sleep 5
+    done
 
     sleep 5
 
@@ -153,12 +138,12 @@ joinUCP() {
         docker swarm join --token "${UCP_JOIN_TOKEN_WORKER}" "${UCP_MANAGER_ADDRESS}"
     fi
 
-    # Wait for node to reach a ready state
-    # while [ "$(curl --request GET --url "https://${UCP_FQDN}/nodes/${NODE_NAME}" --insecure --silent --header 'Accept: application/json' --header "Authorization: Bearer ${AUTH_TOKEN}" | jq --raw-output .Status.State)" != "ready" ]
-    # do
-    #     echo '...node joined, waiting for a ready state'
-    #     sleep 5
-    # done
+    #Wait for node to reach a ready state
+    while [ "$(curl --request GET --url "https://${UCP_FQDN}/nodes/${NODE_NAME}" --insecure --silent --header 'Accept: application/json' --header "Authorization: Bearer ${AUTH_TOKEN}" | jq --raw-output .Status.State)" != "ready" ]
+    do
+        echo '...node joined, waiting for a ready state'
+        sleep 5
+    done
 
     sleep 5
 

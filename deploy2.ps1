@@ -1,13 +1,13 @@
 $ErrorActionPreference = "Stop"
 
-$rg = 'rg_docker12'
-$sp_name = "dockersp12"
+$rg = 'rg_docker13'
+$sp_name = "dockersp13"
 $sp = ((az ad sp create-for-rbac --name $sp_name) | ConvertFrom-Json)
 az role assignment create --assignee ("http://$($sp_name)") --role "Contributor"
 $appId = $sp.appId
 $pwd = $sp.password
-$storageName = "scriptstoragedocker12"
-$domainName = "mydockerkrakow12"
+$storageName = "scriptstoragedocker13"
+$domainName = "mydockerkrakow13"
 $securityGroupName = "nsg_docker"
 
 
