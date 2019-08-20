@@ -1,60 +1,9 @@
 ,
-        {
-            "type": "Microsoft.Compute/virtualMachines",
-            "copy": {
-                "name": "VMCopy",
-                "count": "[variables('dtr').instances]"
-            },
-            "name": "[concat('dtr-', padLeft(copyIndex(1), 2, '0'))]",
-            "apiVersion": "[variables('api').virtualMachines]",
-            "location": "[resourceGroup().location]",
-            "properties": {
-                "hardwareProfile": {
-                    "vmSize": "[variables('dtr').vmSize]"
-                },
-                "storageProfile": {
-                    "imageReference": "[variables('dtr').imageReference]",
-                    "osDisk": {
-                        "diskSizeGB": 128,
-                        "managedDisk": {
-                            "storageAccountType": "Premium_LRS"
-                        },
-                        "createOption": "FromImage"
-                    }
-                },
-                "osProfile": {
-                    "computerName": "[concat('dtr-', padLeft(copyIndex(1), 2, '0'))]",
-                    "adminUsername": "bravo",
-                    "linuxConfiguration": {
-                        "disablePasswordAuthentication": true,
-                        "ssh": {
-                            "publicKeys": [
-                                {
-                                    "path": "/home/bravo/.ssh/authorized_keys",
-                                    "keyData": "[parameters('ssh')]"
-                                }
-                            ]
-                        },
                         "provisionVMAgent": true
-                    },
-                    "secrets": [],
+,
                     "allowExtensionOperations": true
-                },
-                "networkProfile": {
-                    "networkInterfaces": [
-                        {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat('dtr-', padLeft(copyIndex(1), 2, '0')))]"
-                        }
-                    ]
-                },
-                "availabilitySet": {
-                    "id": "[resourceId('Microsoft.Compute/availabilitySets', 'dtr')]"
-                }
-            },
-            "dependsOn": [
-                "[resourceId('Microsoft.Compute/availabilitySets', variables('dtr').avSet)]",
-                "[resourceId('Microsoft.Network/networkInterfaces', concat('dtr-', padLeft(copyIndex(1), 2, '0')))]"
-            ],
+
+,
             "resources": [
                 {
                     "name": "DeployDockerEE",
@@ -87,4 +36,3 @@
                     }
                 }
             ]
-        }
