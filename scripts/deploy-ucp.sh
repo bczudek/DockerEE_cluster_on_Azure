@@ -1,6 +1,7 @@
 #!/bin/sh
 #
-# Install Docker Universal Control Plane on Ubuntu
+# Install Docker Universal Control Plane on Centos
+# Copied and modified from: https://github.com/stevenfollis
 
 # UCP URL
 readonly UCP_FQDN=$1
@@ -20,10 +21,6 @@ readonly NODE_NAME=$(cat /etc/hostname)
 # UCP Administrator Credentials
 readonly UCP_ADMIN="admin"
 readonly UCP_PASSWORD="Docker123!"
-
-# Install jq library for parsing JSON
-sudo yum install epel-release -y
-sudo yum install jq -y
 
 checkUCP() {
 

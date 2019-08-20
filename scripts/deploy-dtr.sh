@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Install Docker Trusted Registry on Centos
-#https://github.com/stevenfollis
+# Copied and modified from: https://github.com/stevenfollis
 
 # UCP URL
 readonly UCP_FQDN=$1
