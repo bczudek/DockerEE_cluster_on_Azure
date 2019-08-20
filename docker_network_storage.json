@@ -12,6 +12,10 @@
         },
         "sa_name": {
             "type": "String"
+        },
+        "subnet_address_space": {
+            "defaultValue": "10.0.0.0/16",
+            "type": "string"
         }
     },
     "variables": {},
@@ -242,7 +246,7 @@
                         "etag": "W/\"7f8018c6-f081-420e-802a-8d933d08ebaf\"",
                         "properties": {
                             "provisioningState": "Succeeded",
-                            "addressPrefix": "10.0.0.0/24",
+                            "addressPrefix": "[parameters('subnet_address_space')]",
                             "networkSecurityGroup": {
                                 "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_name'))]"
                             },
@@ -277,7 +281,7 @@
             ],
             "properties": {
                 "provisioningState": "Succeeded",
-                "addressPrefix": "10.0.0.0/24",
+                "addressPrefix": "[parameters('subnet_address_space')]",
                 "networkSecurityGroup": {
                     "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_name'))]"
                 },

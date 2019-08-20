@@ -52,7 +52,7 @@ installUCP() {
         --volume /var/run/docker.sock:/var/run/docker.sock \
         docker/ucp:"${UCP_VERSION}" install \
         --host-address $(hostname -i) \
-        --pod-cidr 10.0.0.0/24 \
+        --pod-cidr 10.0.0.0/16 \
         --cloud-provider azure \
         --admin-username "${UCP_ADMIN}" \
         --admin-password "${UCP_PASSWORD}" \

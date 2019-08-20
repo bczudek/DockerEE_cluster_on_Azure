@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$version = '1'
+$version = '8'
 $rg = 'rg_docker' + $version
 $sp_name = "dockersp" + $version
 $sp = ((az ad sp create-for-rbac --name $sp_name) | ConvertFrom-Json)
@@ -10,6 +10,11 @@ $pwd = $sp.password
 $storageName = "scriptstoragedocker" + $version
 $domainName = "mydockerkrakow" + $version
 $securityGroupName = "nsg_docker"
+
+$rg
+$sp_name
+$storageName
+$domainName
 
 
 Write-Host 'Deploying resource group'
@@ -45,4 +50,5 @@ az group deployment create `
     --parameters storage_account_key=$storage_key `
     --parameters aadClient_id=$appId `
     --parameters aad_client_secret=$pwd `
-    --parameters security_group_name=$securityGroupName --debug
+    --parameters security_group_name=$securityGroupName `
+    --debug

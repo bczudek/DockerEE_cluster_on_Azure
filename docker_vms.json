@@ -67,7 +67,7 @@
                     {
                         "name": "default",
                         "properties": {
-                            "addressPrefix": "10.0.0.0/24"
+                            "addressPrefix": "10.0.0.0/16"
                         }
                     }
                 ]
@@ -77,7 +77,7 @@
             "instances": "[parameters('instances').managers]",
             "avSet": "managers",
             "subnet": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('shared').networking.name, 'default')]",
-            "vmSize": "Standard_D2s_v3",
+            "vmSize": "Standard_DS11_v2",
             "imageReference": {
                 "publisher": "OpenLogic",
                 "offer": "CentOS",
@@ -89,7 +89,7 @@
             "instances": "[parameters('instances').dtr]",
             "avSet": "dtr",
             "subnet": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('shared').networking.name, 'nodes')]",
-            "vmSize": "Standard_D2s_v3",
+            "vmSize": "Standard_DS11_v2",
             "imageReference": {
                 "publisher": "OpenLogic",
                 "offer": "CentOS",
@@ -719,7 +719,8 @@
             },
             "dependsOn": [
                 "[resourceId('Microsoft.Compute/availabilitySets', variables('dtr').avSet)]",
-                "[resourceId('Microsoft.Network/networkInterfaces', concat('dtr-', padLeft(copyIndex(1), 2, '0')))]"
+                "[resourceId('Microsoft.Network/networkInterfaces', concat('dtr-', padLeft(copyIndex(1), 2, '0')))]",
+                "[resourceId('Microsoft.Compute/virtualMachines/extensions', 'manager-01', 'DeployDockerEE')]"
             ],
             "resources": [
                 {
@@ -738,7 +739,7 @@
                         "typeHandlerVersion": "2.0",
                         "autoUpgradeMinorVersion": true,
                         "protectedSettings": {
-                            "commandToExecute": "[concat('sh installDocker.sh', ' && sh deploy-azureconfig.sh ', subscription().tenantId, ' ', subscription().subscriptionId, ' ', parameters('aadClient_id'), ' ', parameters('aad_client_secret'), ' ', resourceGroup().name, ' ', resourceGroup().location, ' ', parameters('security_group_name'), ' ', parameters('vnet_name'), ' && sh deploy-ucp.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'apps')).dnsSettings.fqdn, ' Manager ', parameters('versions').ucp, ' && sh deploy-dtr.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'dtr')).dnsSettings.fqdn, ' ', parameters('versions').dtr)]",
+                            "commandToExecute": "[concat('sh installDocker.sh', ' && sh deploy-azureconfig.sh ', subscription().tenantId, ' ', subscription().subscriptionId, ' ', parameters('aadClient_id'), ' ', parameters('aad_client_secret'), ' ', resourceGroup().name, ' ', resourceGroup().location, ' ', parameters('security_group_name'), ' ', parameters('vnet_name'), ' && sh deploy-ucp.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'apps')).dnsSettings.fqdn, ' Worker ', parameters('versions').ucp, ' && sh deploy-dtr.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'ucp')).dnsSettings.fqdn, ' ', reference(resourceId('Microsoft.Network/publicIPAddresses', 'dtr')).dnsSettings.fqdn, ' ', parameters('versions').dtr, ' admin ', ' Docker123!' )]",
                             "storageAccountName": "[parameters('storage_account_name')]",
                             "storageAccountKey": "[parameters('storage_account_key')]",
                             "fileUris": [
