@@ -50,14 +50,16 @@
                         "properties": {
                             "protocol": "*",
                             "sourcePortRange": "*",
-                            "destinationPortRange": "443,6443",
                             "sourceAddressPrefix": "*",
                             "destinationAddressPrefix": "*",
                             "access": "Allow",
                             "priority": 101,
                             "direction": "Inbound",
                             "sourcePortRanges": [],
-                            "destinationPortRanges": [],
+                            "destinationPortRanges": [
+                                "443",
+                                "6443"
+                            ],
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
                         }
