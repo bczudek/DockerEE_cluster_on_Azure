@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Install Docker Universal Control Plane on Centos
-# Copied and modified from: https://github.com/stevenfollis
+# Based on https://github.com/microsoft/Docker-EE-on-Azure-Stack-Deployment/commits?author=stevenfollis
 
 # UCP URL
 readonly UCP_FQDN=$1
