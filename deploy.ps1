@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $ssh="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC6KKNcjy35YVgZvO29xuUn/KmmQWa6Azj7BydrwCD9aZRP8vtS6iRmigibWBePBeBOqKUj90qzAOgHT5Vta3PESap9SbXEaLw4yChE3ZIciBXNI8dE5og5ntDRbUi/Fbe2JJnkd43nQ0yr4XvobRsxIJkL1hciHPlvM3F+83kPOU6/YIcafYwnXOjGgRqLptq9AAoJlvjAbZBGRvWU34O4WdeMdcvCySinbyQxB72sOR7wcQKNKoZX/8LQwXufbqdY6TGVCGiE04OemgeksMglyetRxRYyql3F98qZXrCvUE04eryo9W/VMZd/Zj7KPoBz87LQBmyZCXPoIAeeFdMKob7KlayPHvDI+9FY1KO+gsWTs1ceA3o5DZ/s71duCCi2IEfyxdfwivBYHoVV7yMd9uBe5NFAqr+jU9HVs/v0U0DM3L+BT8SEhNhs+ZRm5ejWGdVLpZINqkw3gFkQ1ygqQ/QPaLkgNsku8hpRnfgLzqtJ//tpbc46NI/630Ucb/cEsvsYeOAC12KinEjPNhlWYSJAhVQG80Z8gGtOJEUc3wVWmVRwRYI/jw7FrWZy65tKEMI7N82xUBkSXJ5Cdvq8p6GHPBn5s3vpHeaUyoXPwqTdNmrs7AG9TRhrju4m261L8ord/c/RKgSiSFj60QJLb+sDUF/PBiOiS1jUHWGFLw== bartlomiej.czudek@capgemini.com"
 $dockerURL = "https://storebits.docker.com/ee/centos/sub-396efa35-0cee-43f6-9a04-98712c7b2edb"
 
-$version = '15'
+$version = '3'
 $rg = 'rg_docker' + $version
 $sp_name = "dockersp" + $version
 $storageName = "scriptstoragedocker" + $version
