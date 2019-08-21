@@ -22,7 +22,7 @@ To deploy the stack, execute following steps
 2. Amend the parameters in deploy.ps1 file:
     1. ssh: key used in all linux vms (it is worth to generate a key usign ssh-keygen)
     2. dockerURL: your url to Docker EE. You can obtain it from https://hub.docker.com/
-    3. version: 
+    3. version: this is just a postfix to the variables below. I used in when testing and spinning multiple resource groups. Please not that you can leave below parameters with their default
     4. rg: resource group name - all resources will be placed there
     5. sp_name: service principal name
     6. storageName: name of the storage where scripts will be uploaded and then downloaded by all vms while configuring
